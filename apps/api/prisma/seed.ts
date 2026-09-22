@@ -117,6 +117,74 @@ async function main() {
   });
 
   console.log(`Created patient: ${patient.name}`);
+
+  // ─────────────────────────────────────────────
+  // DEMO APPOINTMENTS FOR TODAY
+  // ─────────────────────────────────────────────
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const demoAppointments = [
+    {
+      patientId: patient.id,
+      clinicId: "cln_vut_campus",
+      createdById: receptionist.id,
+      date: today,
+      time: "08:30",
+      reason: "Follow-up consultation",
+      status: "CHECKED_IN",
+      queuePosition: 1,
+    },
+    {
+      patientId: patient.id,
+      clinicId: "cln_vut_campus",
+      createdById: receptionist.id,
+      date: today,
+      time: "09:15",
+      reason: "Blood pressure review",
+      status: "SCHEDULED",
+      queuePosition: 2,
+    },
+    {
+      patientId: patient.id,
+      clinicId: "cln_vut_campus",
+      createdById: receptionist.id,
+      date: today,
+      time: "10:00",
+      reason: "Medication refill",
+      status: "IN_CONSULTATION",
+      queuePosition: 3,
+    },
+    {
+      patientId: patient.id,
+      clinicId: "cln_vut_campus",
+      createdById: receptionist.id,
+      date: today,
+      time: "11:45",
+      reason: "Routine check-up",
+      status: "DONE",
+      queuePosition: 4,
+    },
+  ] as const;
+
+  const appointmentEntries = await Promise.all(
+    demoAppointments.map(async (entry) =>
+      prisma.appointment.upsert({
+        where: {
+          id: `${entry.clinicId}-${entry.time}-${entry.patientId}`,
+        },
+        update: entry,
+        create: {
+          ...entry,
+          id: `${entry.clinicId}-${entry.time}-${entry.patientId}`,
+        },
+      }),
+    ),
+  );
+
+  console.log(
+    `Created ${appointmentEntries.length} demo appointments for today.`,
+  );
   console.log("");
   console.log("Seed complete!");
   console.log("");
