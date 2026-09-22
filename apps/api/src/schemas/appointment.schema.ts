@@ -22,7 +22,9 @@ export type BookAppointmentInput = z.infer<typeof bookAppointmentSchema>;
 export const updateStatusSchema = z.object({
   status: z.enum([
     "CHECKED_IN",
+    "IN_VITALS",
     "IN_CONSULTATION",
+    "AWAITING_MEDICATION",
     "DONE",
     "NO_SHOW",
     "CANCELLED",
@@ -30,3 +32,12 @@ export const updateStatusSchema = z.object({
 });
 
 export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;
+
+export const dailyReportQuerySchema = z.object({
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+    .optional(),
+});
+
+export type DailyReportQuery = z.infer<typeof dailyReportQuerySchema>;

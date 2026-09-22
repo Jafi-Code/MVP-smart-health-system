@@ -3,9 +3,9 @@ const API_BASE = "http://localhost:3000/api/v1";
 // ─────────────────────────────────────────────
 // TOKEN STORAGE
 // ─────────────────────────────────────────────
-const ACCESS_TOKEN_KEY = "shs_access_token";
-const REFRESH_TOKEN_KEY = "shs_refresh_token";
-const USER_KEY = "shs_user";
+const ACCESS_TOKEN_KEY = "shs_patient_access_token";
+const REFRESH_TOKEN_KEY = "shs_patient_refresh_token";
+const USER_KEY = "shs_patient_user";
 
 export const auth = {
   getAccessToken: () => localStorage.getItem(ACCESS_TOKEN_KEY),
@@ -68,68 +68,46 @@ export class ApiError extends Error {
 // ─────────────────────────────────────────────
 export const api = {
   // Auth
+  register: (data: {
+    name: string;
+    phone: string;
+    idNumber?: string;
+    password: string;
+  }) =>
+    request<{ user: any; accessToken: string; refreshToken: string }>(
+      "/auth/register",
+      { method: "POST", body: JSON.stringify(data) },
+    ),
+
   login: (identifier: string, password: string) =>
     request<{ user: any; accessToken: string; refreshToken: string }>(
       "/auth/login",
-      {
-        method: "POST",
-        body: JSON.stringify({ identifier, password }),
-      },
+      { method: "POST", body: JSON.stringify({ identifier, password }) },
     ),
 
   me: () => request<{ user: any }>("/auth/me"),
 
-  // Staff
-  getTodayAppointments: () =>
-    request<{ appointments: Appointment[] }>("/clinic/appointments"),
+  // Clinics
+  listClinics: () => request<{ clinics: Clinic[] }>("/clinics"),
 
-  updateStatus: (id: string, status: AppointmentStatus) =>
-    request<{ appointment: Appointment }>(`/clinic/appointments/${id}/status`, {
-      method: "PATCH",
-      body: JSON.stringify({ status }),
+  // Appointments
+  bookAppointment: (data: {
+    clinicId: string;
+    date: string;
+    time: string;
+    reason?: string;
+  }) =>
+    request<{ appointment: Appointment }>("/appointments", {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
 
-  getDailyReport: (date?: string) =>
-    request<DailyReport>(
-      `/clinic/reports/daily${date ? `?date=${encodeURIComponent(date)}` : ""}`,
-    ),
+  getMyAppointments: () =>
+    request<{ appointments: Appointment[] }>("/appointments/me"),
 
-  downloadDailyReportCSV: async (date?: string) => {
-    const token = auth.getAccessToken();
-    const query = date ? `?date=${encodeURIComponent(date)}` : "";
-    const response = await fetch(
-      `${API_BASE}/clinic/reports/daily/export${query}`,
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      },
-    );
-
-    if (!response.ok) {
-      let message = "Failed to download report";
-      try {
-        const json = await response.json();
-        message = json?.error?.message || message;
-      } catch {
-        // Keep the generic message when the server does not return JSON.
-      }
-      throw new ApiError(message, "REPORT_DOWNLOAD_FAILED", response.status);
-    }
-
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `shs-report-${date || new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  },
-
-  // Public
-  getClinicQueue: (clinicId: string) =>
-    request<{ date: string; stats: QueueStats; appointments: Appointment[] }>(
-      `/appointments/queue/${clinicId}`,
+  getClinicQueue: (clinicId: string, date?: string) =>
+    request<{ date: string; stats: QueueStats; appointments: QueueItem[] }>(
+      `/appointments/queue/${clinicId}${date ? `?date=${date}` : ""}`,
     ),
 };
 
@@ -139,12 +117,18 @@ export const api = {
 export type AppointmentStatus =
   | "SCHEDULED"
   | "CHECKED_IN"
-  | "IN_VITALS"
   | "IN_CONSULTATION"
-  | "AWAITING_MEDICATION"
   | "DONE"
   | "CANCELLED"
   | "NO_SHOW";
+
+export interface Clinic {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  operatingHours?: Record<string, any>;
+}
 
 export interface Appointment {
   id: string;
@@ -153,61 +137,28 @@ export interface Appointment {
   reason?: string;
   status: AppointmentStatus;
   queuePosition?: number;
-  patient: {
+  clinic: {
     id: string;
     name: string;
-    phone?: string;
+    address?: string;
   };
-  clinic: {
+}
+
+export interface QueueItem {
+  id: string;
+  time: string;
+  status: AppointmentStatus;
+  queuePosition?: number;
+  patient: {
     id: string;
     name: string;
   };
 }
-export type Station =
-  | "NONE"
-  | "RECEPTION"
-  | "TRIAGE"
-  | "CONSULTATION"
-  | "PHARMACY";
+
 export interface QueueStats {
   total: number;
   scheduled: number;
   checkedIn: number;
   inConsultation: number;
   done: number;
-}
-
-export interface DailyReport {
-  date: string;
-  clinicId: string;
-  clinicName: string;
-  summary: {
-    totalAppointments: number;
-    completed: number;
-    noShows: number;
-    cancelled: number;
-    stillWaiting: number;
-    noShowRate: number;
-    completionRate: number;
-  };
-  waitTimes: {
-    averageTotalMinutes: number;
-    averageTriageToConsultMinutes: number;
-    averageConsultToDoneMinutes: number;
-  };
-  stationActivity: Array<{
-    station: string;
-    patientsProcessed: number;
-  }>;
-  timeline: Array<{
-    appointmentId: string;
-    patientName: string;
-    phone?: string | null;
-    scheduledTime: string;
-    status: AppointmentStatus;
-    checkedInAt: string | null;
-    consultationStartedAt: string | null;
-    completedAt: string | null;
-    totalMinutes: number | null;
-  }>;
 }

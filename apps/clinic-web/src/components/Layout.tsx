@@ -13,6 +13,9 @@ export default function Layout() {
   const navItems = [
     { to: "/dashboard", label: "Dashboard", icon: "📊" },
     { to: "/queue", label: "Live Queue", icon: "🔄" },
+    ...(user?.role === "MANAGER" || user?.role === "ADMIN"
+      ? [{ to: "/reports", label: "Reports", icon: "📈" }]
+      : []),
   ];
 
   return (

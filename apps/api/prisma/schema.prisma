@@ -19,10 +19,20 @@ enum Role {
   ADMIN
 }
 
+enum Station {
+  NONE
+  RECEPTION
+  TRIAGE
+  CONSULTATION
+  PHARMACY
+}
+
 enum AppointmentStatus {
   SCHEDULED
   CHECKED_IN
+  IN_VITALS
   IN_CONSULTATION
+  AWAITING_MEDICATION
   DONE
   CANCELLED
   NO_SHOW
@@ -55,6 +65,7 @@ model User {
   email         String?       @unique
   passwordHash  String
   role          Role          @default(PATIENT)
+  station       Station       @default(NONE)
 
   clinicId      String?
   clinic        Clinic?       @relation(fields: [clinicId], references: [id], onDelete: SetNull)

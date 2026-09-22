@@ -36,12 +36,22 @@ const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       const user = await registerPatient(parsed.data);
 
       const accessToken = app.jwt.sign(
-        { sub: user.id, role: user.role, clinicId: user.clinicId },
+        {
+          sub: user.id,
+          role: user.role,
+          station: user.station,
+          clinicId: user.clinicId,
+        },
         { expiresIn: process.env.JWT_ACCESS_EXPIRY || "15m" },
       );
 
       const refreshToken = app.jwt.sign(
-        { sub: user.id, role: user.role, clinicId: user.clinicId },
+        {
+          sub: user.id,
+          role: user.role,
+          station: user.station,
+          clinicId: user.clinicId,
+        },
         { expiresIn: process.env.JWT_REFRESH_EXPIRY || "7d" },
       );
 
@@ -84,12 +94,22 @@ const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       const user = await loginUser(parsed.data);
 
       const accessToken = app.jwt.sign(
-        { sub: user.id, role: user.role, clinicId: user.clinicId },
+        {
+          sub: user.id,
+          role: user.role,
+          station: user.station,
+          clinicId: user.clinicId,
+        },
         { expiresIn: process.env.JWT_ACCESS_EXPIRY || "15m" },
       );
 
       const refreshToken = app.jwt.sign(
-        { sub: user.id, role: user.role, clinicId: user.clinicId },
+        {
+          sub: user.id,
+          role: user.role,
+          station: user.station,
+          clinicId: user.clinicId,
+        },
         { expiresIn: process.env.JWT_REFRESH_EXPIRY || "7d" },
       );
 
@@ -150,11 +170,17 @@ const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       const decoded = app.jwt.verify<{
         sub: string;
         role: "PATIENT" | "RECEPTIONIST" | "NURSE" | "MANAGER" | "ADMIN";
+        station?: "NONE" | "RECEPTION" | "TRIAGE" | "CONSULTATION" | "PHARMACY";
         clinicId?: string | null;
       }>(parsed.data.refreshToken);
 
       const accessToken = app.jwt.sign(
-        { sub: decoded.sub, role: decoded.role, clinicId: decoded.clinicId },
+        {
+          sub: decoded.sub,
+          role: decoded.role,
+          station: decoded.station ?? "NONE",
+          clinicId: decoded.clinicId,
+        },
         { expiresIn: process.env.JWT_ACCESS_EXPIRY || "15m" },
       );
 

@@ -27,8 +27,12 @@ export default function Dashboard() {
     total: appointments.length,
     scheduled: appointments.filter((a) => a.status === "SCHEDULED").length,
     checkedIn: appointments.filter((a) => a.status === "CHECKED_IN").length,
+    inVitals: appointments.filter((a) => a.status === "IN_VITALS").length,
     inConsultation: appointments.filter((a) => a.status === "IN_CONSULTATION")
       .length,
+    awaitingMedication: appointments.filter(
+      (a) => a.status === "AWAITING_MEDICATION",
+    ).length,
     done: appointments.filter((a) => a.status === "DONE").length,
   };
 
@@ -53,14 +57,11 @@ export default function Dashboard() {
       )}
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <StatCard label="Total" value={stats.total} color="slate" />
-        <StatCard label="Waiting" value={stats.checkedIn} color="amber" />
-        <StatCard
-          label="In Consultation"
-          value={stats.inConsultation}
-          color="blue"
-        />
+        <StatCard label="Scheduled" value={stats.scheduled} color="amber" />
+        <StatCard label="Checked In" value={stats.checkedIn} color="blue" />
+        <StatCard label="Vitals" value={stats.inVitals} color="cyan" />
         <StatCard label="Done" value={stats.done} color="green" />
       </div>
 
@@ -140,12 +141,13 @@ function StatCard({
 }: {
   label: string;
   value: number;
-  color: "slate" | "amber" | "blue" | "green";
+  color: "slate" | "amber" | "blue" | "cyan" | "green";
 }) {
   const colors = {
     slate: "bg-slate-100 text-slate-700",
     amber: "bg-amber-100 text-amber-700",
     blue: "bg-blue-100 text-blue-700",
+    cyan: "bg-cyan-100 text-cyan-700",
     green: "bg-green-100 text-green-700",
   };
 
@@ -170,7 +172,9 @@ export function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     SCHEDULED: "bg-slate-100 text-slate-700",
     CHECKED_IN: "bg-amber-100 text-amber-800",
+    IN_VITALS: "bg-cyan-100 text-cyan-800",
     IN_CONSULTATION: "bg-blue-100 text-blue-800",
+    AWAITING_MEDICATION: "bg-violet-100 text-violet-800",
     DONE: "bg-green-100 text-green-800",
     CANCELLED: "bg-red-100 text-red-700",
     NO_SHOW: "bg-red-100 text-red-700",
@@ -179,7 +183,9 @@ export function StatusBadge({ status }: { status: string }) {
   const labels: Record<string, string> = {
     SCHEDULED: "Scheduled",
     CHECKED_IN: "Checked In",
+    IN_VITALS: "In Vitals",
     IN_CONSULTATION: "In Consultation",
+    AWAITING_MEDICATION: "Awaiting Medication",
     DONE: "Done",
     CANCELLED: "Cancelled",
     NO_SHOW: "No Show",

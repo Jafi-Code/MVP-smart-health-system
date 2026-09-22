@@ -58,39 +58,66 @@ async function main() {
 
   const receptionist = await prisma.user.upsert({
     where: { email: "reception@vut-clinic.test" },
-    update: {},
+    update: {
+      name: "Thandi Nkosi",
+      email: "reception@vut-clinic.test",
+      phone: "0820000001",
+      passwordHash: staffPassword,
+      role: "RECEPTIONIST",
+      station: "RECEPTION",
+      clinicId: "cln_vut_campus",
+    },
     create: {
       name: "Thandi Nkosi",
       email: "reception@vut-clinic.test",
       phone: "0820000001",
       passwordHash: staffPassword,
       role: "RECEPTIONIST",
+      station: "RECEPTION",
       clinicId: "cln_vut_campus",
     },
   });
 
   const nurse = await prisma.user.upsert({
     where: { email: "nurse@vut-clinic.test" },
-    update: {},
+    update: {
+      name: "Sister Nomsa Dlamini",
+      email: "nurse@vut-clinic.test",
+      phone: "0820000002",
+      passwordHash: staffPassword,
+      role: "NURSE",
+      station: "TRIAGE",
+      clinicId: "cln_vut_campus",
+    },
     create: {
       name: "Sister Nomsa Dlamini",
       email: "nurse@vut-clinic.test",
       phone: "0820000002",
       passwordHash: staffPassword,
       role: "NURSE",
+      station: "TRIAGE",
       clinicId: "cln_vut_campus",
     },
   });
 
   const manager = await prisma.user.upsert({
     where: { email: "manager@vut-clinic.test" },
-    update: {},
+    update: {
+      name: "Mr Thapelo Kgakatsi",
+      email: "manager@vut-clinic.test",
+      phone: "0820000003",
+      passwordHash: staffPassword,
+      role: "MANAGER",
+      station: "NONE",
+      clinicId: "cln_vut_campus",
+    },
     create: {
       name: "Mr Thapelo Kgakatsi",
       email: "manager@vut-clinic.test",
       phone: "0820000003",
       passwordHash: staffPassword,
       role: "MANAGER",
+      station: "NONE",
       clinicId: "cln_vut_campus",
     },
   });
@@ -106,13 +133,21 @@ async function main() {
 
   const patient = await prisma.user.upsert({
     where: { phone: "0821234567" },
-    update: {},
-    create: {
-      name: "Gogo Maria Dlamini",
+    update: {
+      name: "Sipho Mokoena",
       phone: "0821234567",
       idNumber: "5501015800083",
       passwordHash: patientPassword,
       role: "PATIENT",
+      station: "NONE",
+    },
+    create: {
+      name: "Sipho Mokoena",
+      phone: "0821234567",
+      idNumber: "5501015800083",
+      passwordHash: patientPassword,
+      role: "PATIENT",
+      station: "NONE",
     },
   });
 

@@ -50,15 +50,16 @@ export default function Queue() {
     }
   };
 
-  // Sort: in consultation first, then checked in, then scheduled
   const sorted = [...appointments].sort((a, b) => {
     const order: Record<string, number> = {
       IN_CONSULTATION: 0,
-      CHECKED_IN: 1,
-      SCHEDULED: 2,
-      DONE: 3,
-      CANCELLED: 4,
-      NO_SHOW: 4,
+      AWAITING_MEDICATION: 1,
+      IN_VITALS: 2,
+      CHECKED_IN: 3,
+      SCHEDULED: 4,
+      DONE: 5,
+      CANCELLED: 6,
+      NO_SHOW: 6,
     };
     const diff = (order[a.status] ?? 5) - (order[b.status] ?? 5);
     if (diff !== 0) return diff;
@@ -121,17 +122,27 @@ export default function Queue() {
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={appt.status} />
 
-                  {appt.status === "SCHEDULED" && (
+                  {(appt.status === "SCHEDULED" ||
+                    appt.status === "CHECKED_IN") && (
                     <button
-                      onClick={() => handleStatusChange(appt.id, "CHECKED_IN")}
+                      onClick={() =>
+                        handleStatusChange(
+                          appt.id,
+                          appt.status === "SCHEDULED"
+                            ? "CHECKED_IN"
+                            : "IN_VITALS",
+                        )
+                      }
                       disabled={updating === appt.id}
                       className="btn-success disabled:opacity-50"
                     >
-                      Check In
+                      {appt.status === "SCHEDULED"
+                        ? "Patient Arrived"
+                        : "Start Vitals"}
                     </button>
                   )}
 
-                  {appt.status === "CHECKED_IN" && (
+                  {appt.status === "IN_VITALS" && (
                     <button
                       onClick={() =>
                         handleStatusChange(appt.id, "IN_CONSULTATION")
@@ -139,17 +150,29 @@ export default function Queue() {
                       disabled={updating === appt.id}
                       className="btn-primary disabled:opacity-50"
                     >
-                      Start Consult
+                      Send to Consult
                     </button>
                   )}
 
                   {appt.status === "IN_CONSULTATION" && (
                     <button
-                      onClick={() => handleStatusChange(appt.id, "DONE")}
+                      onClick={() =>
+                        handleStatusChange(appt.id, "AWAITING_MEDICATION")
+                      }
                       disabled={updating === appt.id}
                       className="btn-primary disabled:opacity-50"
                     >
-                      Mark Done
+                      Send to Rx
+                    </button>
+                  )}
+
+                  {appt.status === "AWAITING_MEDICATION" && (
+                    <button
+                      onClick={() => handleStatusChange(appt.id, "DONE")}
+                      disabled={updating === appt.id}
+                      className="btn-success disabled:opacity-50"
+                    >
+                      Dispense
                     </button>
                   )}
                 </div>

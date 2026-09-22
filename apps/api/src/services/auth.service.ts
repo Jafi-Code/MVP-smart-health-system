@@ -59,6 +59,7 @@ export async function registerPatient(input: RegisterInput) {
       idNumber: input.idNumber,
       passwordHash,
       role: "PATIENT",
+      station: "NONE",
     },
     select: {
       id: true,
@@ -67,6 +68,7 @@ export async function registerPatient(input: RegisterInput) {
       idNumber: true,
       email: true,
       role: true,
+      station: true,
       clinicId: true,
       createdAt: true,
     },
@@ -105,6 +107,7 @@ export async function loginUser(input: LoginInput) {
     phone: user.phone,
     email: user.email,
     role: user.role,
+    station: user.station,
     clinicId: user.clinicId,
   };
 }
@@ -123,6 +126,7 @@ export async function getUserById(id: string) {
       email: true,
       idNumber: true,
       role: true,
+      station: true,
       clinicId: true,
       createdAt: true,
     },
