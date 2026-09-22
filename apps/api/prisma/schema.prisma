@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  PATIENT
+  RECEPTIONIST
+  NURSE
+  MANAGER
+  ADMIN
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CHECKED_IN
+  IN_CONSULTATION
+  DONE
+  CANCELLED
+  NO_SHOW
+}
+
+// ─────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────
+
+model Clinic {
+  id             String        @id @default(cuid())
+  name           String
+  address        String?
+  phone          String?
+  operatingHours Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  users          User[]
+  appointments   Appointment[]
+
+  @@index([name])
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String
+  idNumber      String?       @unique
+  phone         String?       @unique
+  email         String?       @unique
+  passwordHash  String
+  role          Role          @default(PATIENT)
+
+  clinicId      String?
+  clinic        Clinic?       @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  patientAppointments  Appointment[] @relation("PatientAppointments")
+  createdAppointments  Appointment[] @relation("StaffAppointments")
+
+  @@index([phone])
+  @@index([email])
+  @@index([clinicId])
+}
+
+model Appointment {
+  id                    String             @id @default(cuid())
+
+  patientId             String
+  patient               User               @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+
+  clinicId              String
+  clinic                Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  createdById           String?
+  createdBy             User?              @relation("StaffAppointments", fields: [createdById], references: [id], onDelete: SetNull)
+
+  date                  DateTime
+  time                  String
+  reason                String?
+  status                AppointmentStatus  @default(SCHEDULED)
+  queuePosition         Int?
+
+  checkedInAt           DateTime?
+  consultationStartedAt DateTime?
+  completedAt           DateTime?
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([clinicId, date])
+  @@index([patientId])
+  @@index([status])
+}
