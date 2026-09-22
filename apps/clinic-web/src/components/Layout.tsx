@@ -23,9 +23,11 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="hidden w-64 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2 border-b border-slate-200 px-6 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-lg font-bold text-white">
-            S
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="Smart Health System"
+            className="h-9 w-9 object-contain"
+          />
           <div>
             <div className="text-sm font-bold text-slate-900">SHS Clinic</div>
             <div className="text-xs text-slate-500">{user?.role}</div>

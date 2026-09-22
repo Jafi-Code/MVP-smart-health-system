@@ -35,9 +35,11 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-white to-slate-100 p-6">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-2xl font-bold text-white">
-            S
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="Smart Health System"
+            className="mx-auto h-14 w-14 object-contain"
+          />
           <h1 className="mt-4 text-2xl font-bold text-slate-900">
             SHS Clinic Dashboard
           </h1>

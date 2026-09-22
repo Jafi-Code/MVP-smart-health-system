@@ -33,9 +33,11 @@ export default function Login() {
       {/* Hero */}
       <div className="bg-gradient-to-br from-primary to-blue-800 px-6 py-12 text-white">
         <div className="mx-auto max-w-md">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 text-2xl font-bold backdrop-blur">
-            S
-          </div>
+          <img
+            src="/logo.jpg"
+            alt="Smart Health System"
+            className="h-14 w-14 object-contain"
+          />
           <h1 className="mt-6 text-3xl font-bold leading-tight">
             Welcome back
           </h1>
