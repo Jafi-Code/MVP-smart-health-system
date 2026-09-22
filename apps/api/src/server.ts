@@ -1,16 +1,17 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import jwt from "@fastify/jwt";
 import dotenv from "dotenv";
-import { prisma } from "./lib/prisma.js";
 
-// Load environment variables
+import { prisma } from "./lib/prisma.js";
+import authRoutes from "./routes/auth.routes.js";
+
 dotenv.config();
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = "0.0.0.0";
 
-// Create Fastify instance
 const app = Fastify({
   logger: {
     level: process.env.NODE_ENV === "production" ? "info" : "debug",
@@ -28,48 +29,55 @@ const app = Fastify({
   },
 });
 
-// Register plugins
+// ─────────────────────────────────────────────
+// AUTH DECORATOR (used by protected routes)
+// ─────────────────────────────────────────────
+app.decorate("authenticate", async function (request: any, reply: any) {
+  try {
+    await request.jwtVerify();
+  } catch {
+    return reply.status(401).send({
+      success: false,
+      error: { code: "UNAUTHORIZED", message: "Invalid or expired token" },
+    });
+  }
+});
+
+// ─────────────────────────────────────────────
+// PLUGINS
+// ─────────────────────────────────────────────
 async function registerPlugins() {
-  await app.register(helmet, {
-    contentSecurityPolicy: false,
-  });
+  await app.register(helmet, { contentSecurityPolicy: false });
 
   await app.register(cors, {
     origin: process.env.CORS_ORIGIN?.split(",") || true,
     credentials: true,
   });
+
+  await app.register(jwt, {
+    secret: process.env.JWT_SECRET || "fallback-dev-secret-change-me",
+    sign: { expiresIn: process.env.JWT_ACCESS_EXPIRY || "15m" },
+  });
 }
 
-// Health check endpoint
-app.get("/health", async () => {
-  return {
-    status: "ok",
-    service: "shs-api",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV,
-  };
-});
+// ─────────────────────────────────────────────
+// ROUTES
+// ─────────────────────────────────────────────
+app.get("/health", async () => ({
+  status: "ok",
+  service: "shs-api",
+  timestamp: new Date().toISOString(),
+  uptime: process.uptime(),
+  environment: process.env.NODE_ENV,
+}));
 
-// Root endpoint
-app.get("/", async () => {
-  return {
-    name: "Smart Health System API",
-    version: "0.1.0",
-    description: "Offline-first patient flow management platform",
-    endpoints: {
-      health: "/health",
-      databaseHealth: "/health/db",
-    },
-  };
-});
-
-// Database health check
 app.get("/health/db", async (_request, reply) => {
   try {
-    const clinicCount = await prisma.clinic.count();
-    const userCount = await prisma.user.count();
-    const appointmentCount = await prisma.appointment.count();
+    const [clinicCount, userCount, appointmentCount] = await Promise.all([
+      prisma.clinic.count(),
+      prisma.user.count(),
+      prisma.appointment.count(),
+    ]);
 
     return {
       status: "ok",
@@ -91,12 +99,33 @@ app.get("/health/db", async (_request, reply) => {
   }
 });
 
-// Start server
+app.get("/", async () => ({
+  name: "Smart Health System API",
+  version: "0.1.0",
+  description: "Offline-first patient flow management platform",
+  endpoints: {
+    health: "/health",
+    databaseHealth: "/health/db",
+    auth: {
+      register: "POST /api/v1/auth/register",
+      login: "POST /api/v1/auth/login",
+      refresh: "POST /api/v1/auth/refresh",
+      me: "GET /api/v1/auth/me",
+    },
+  },
+}));
+
+// Register auth routes under /api/v1/auth
+await app.register(authRoutes, { prefix: "/api/v1/auth" });
+
+// ─────────────────────────────────────────────
+// START
+// ─────────────────────────────────────────────
 async function start() {
   try {
     await registerPlugins();
     await app.listen({ port: PORT, host: HOST });
-    app.log.info(`SHS API running at http://localhost:${PORT}`);
+    app.log.info(`🚀 SHS API running at http://localhost:${PORT}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
