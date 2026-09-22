@@ -7,6 +7,11 @@ import dotenv from "dotenv";
 import { prisma } from "./lib/prisma.js";
 import authRoutes from "./routes/auth.routes.js";
 
+import {
+  appointmentRoutes,
+  clinicRoutes,
+} from "./routes/appointment.routes.js";
+
 dotenv.config();
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -112,11 +117,23 @@ app.get("/", async () => ({
       refresh: "POST /api/v1/auth/refresh",
       me: "GET /api/v1/auth/me",
     },
+    clinics: "GET /api/v1/clinics",
+    appointments: {
+      book: "POST /api/v1/appointments",
+      mine: "GET /api/v1/appointments/me",
+      queue: "GET /api/v1/appointments/queue/:clinicId",
+    },
+    staff: {
+      today: "GET /api/v1/clinic/appointments",
+      updateStatus: "PATCH /api/v1/clinic/appointments/:id/status",
+    },
   },
 }));
 
 // Register auth routes under /api/v1/auth
 await app.register(authRoutes, { prefix: "/api/v1/auth" });
+await app.register(appointmentRoutes, { prefix: "/api/v1" });
+await app.register(clinicRoutes, { prefix: "/api/v1/clinic" });
 
 // ─────────────────────────────────────────────
 // START
