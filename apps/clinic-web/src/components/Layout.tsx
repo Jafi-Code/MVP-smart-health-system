@@ -13,10 +13,12 @@ export default function Layout() {
   const navItems = [
     { to: "/dashboard", label: "Dashboard", icon: "📊" },
     { to: "/queue", label: "Live Queue", icon: "🔄" },
-    ...(user?.role === "MANAGER" || user?.role === "ADMIN"
-      ? [{ to: "/reports", label: "Reports", icon: "📈" }]
-      : []),
   ];
+
+  // Add Reports for managers and admins only
+  if (user?.role === "MANAGER" || user?.role === "ADMIN") {
+    navItems.push({ to: "/reports", label: "Reports", icon: "📈" });
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -26,7 +28,7 @@ export default function Layout() {
           <img
             src="/logo.jpg"
             alt="Smart Health System"
-            className="h-9 w-9 object-contain"
+            className="h-9 w-9 rounded-full object-contain"
           />
           <div>
             <div className="text-sm font-bold text-slate-900">SHS Clinic</div>

@@ -1,81 +1,59 @@
 import { useEffect, useState } from "react";
-import { api, ApiError, type DailyReport } from "../lib/api";
-import { StatusBadge } from "./Dashboard";
-
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function formatTimestamp(value: string | null) {
-  if (!value) return "-";
-  return new Date(value).toLocaleTimeString("en-ZA", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { api, type DailyReport, ApiError } from "../lib/api";
 
 export default function Reports() {
+  const today = new Date().toISOString().split("T")[0];
   const [date, setDate] = useState(today);
   const [report, setReport] = useState<DailyReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   const loadReport = async () => {
-    setIsLoading(true);
     setError("");
+    setIsLoading(true);
     try {
-      setReport(await api.getDailyReport(date));
+      const data = await api.getDailyReport(date);
+      setReport(data);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load report");
+      if (err instanceof ApiError) setError(err.message);
+      else setError("Failed to load report");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    void loadReport();
+    loadReport();
   }, [date]);
 
-  const download = async () => {
-    try {
-      await api.downloadDailyReportCSV(date);
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Failed to download report",
-      );
-    }
+  const handleDownloadCSV = () => {
+    api.downloadDailyReportCSV(date);
   };
 
   return (
     <div className="p-6 md:p-8">
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Daily Report</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Operational summary for {report?.clinicName || "your clinic"}
+            Full activity summary for the selected day
           </p>
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="text-sm font-medium text-slate-600">
-            Report date
-            <input
-              type="date"
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              className="input mt-1 min-w-44"
-            />
-          </label>
-          <button
-            onClick={loadReport}
-            className="btn-ghost"
-            disabled={isLoading}
-          >
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="date"
+            value={date}
+            max={today}
+            onChange={(e) => setDate(e.target.value)}
+            className="input !w-auto"
+          />
+          <button onClick={loadReport} className="btn-ghost">
             Refresh
           </button>
           <button
-            onClick={download}
-            className="btn-primary"
-            disabled={!report || isLoading}
+            onClick={handleDownloadCSV}
+            disabled={!report}
+            className="btn-primary disabled:opacity-50"
           >
             Download CSV
           </button>
@@ -89,204 +67,196 @@ export default function Reports() {
       )}
 
       {isLoading ? (
-        <div className="card py-16 text-center text-sm text-slate-500">
+        <div className="card py-12 text-center text-sm text-slate-500">
           Loading report...
         </div>
-      ) : report ? (
-        <>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-7">
-            <Metric label="Total" value={report.summary.totalAppointments} />
-            <Metric
+      ) : !report ? (
+        <div className="card py-12 text-center text-sm text-slate-500">
+          No report available.
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            <StatCard label="Total" value={report.summary.totalAppointments} />
+            <StatCard
               label="Completed"
               value={report.summary.completed}
-              tone="green"
+              color="green"
             />
-            <Metric
-              label="No-Shows"
-              value={report.summary.noShows}
-              tone="red"
-            />
-            <Metric
+            <StatCard
               label="Waiting"
               value={report.summary.stillWaiting}
-              tone="amber"
+              color="amber"
             />
-            <Metric label="Cancelled" value={report.summary.cancelled} />
-            <Metric
-              label="No-Show Rate"
-              value={`${report.summary.noShowRate}%`}
+            <StatCard
+              label="No-Shows"
+              value={report.summary.noShows}
+              color="red"
             />
-            <Metric
-              label="Completion Rate"
+            <StatCard
+              label="Cancelled"
+              value={report.summary.cancelled}
+              color="red"
+            />
+            <StatCard
+              label="Completion"
               value={`${report.summary.completionRate}%`}
-              tone="green"
+              color="blue"
             />
           </div>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-            <section className="card">
-              <h2 className="text-lg font-bold text-slate-900">Wait Times</h2>
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <WaitMetric
-                  label="Total visit"
-                  value={report.waitTimes.averageTotalMinutes}
-                />
-                <WaitMetric
-                  label="Triage to consult"
-                  value={report.waitTimes.averageTriageToConsultMinutes}
-                />
-                <WaitMetric
-                  label="Consult to done"
-                  value={report.waitTimes.averageConsultToDoneMinutes}
-                />
-              </div>
-            </section>
+          {/* Wait times */}
+          <div className="card">
+            <h2 className="mb-4 text-lg font-bold text-slate-900">
+              Average Wait Times
+            </h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <MetricRow
+                label="Total visit time"
+                value={`${report.waitTimes.averageTotalMinutes} min`}
+              />
+              <MetricRow
+                label="Triage → Consult"
+                value={`${report.waitTimes.averageTriageToConsultMinutes} min`}
+              />
+              <MetricRow
+                label="Consult → Done"
+                value={`${report.waitTimes.averageConsultToDoneMinutes} min`}
+              />
+            </div>
+          </div>
 
-            <section className="card">
-              <h2 className="text-lg font-bold text-slate-900">
-                Station Activity
-              </h2>
-              <div className="mt-4 overflow-x-auto">
+          {/* Station activity */}
+          <div className="card">
+            <h2 className="mb-4 text-lg font-bold text-slate-900">
+              Station Activity
+            </h2>
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                  <th className="pb-3 font-medium">Station</th>
+                  <th className="pb-3 font-medium">Patients Processed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.stationActivity.map((s) => (
+                  <tr
+                    key={s.station}
+                    className="border-b border-slate-100 last:border-0"
+                  >
+                    <td className="py-3 font-medium text-slate-900">
+                      {s.station}
+                    </td>
+                    <td className="py-3 text-slate-700">
+                      {s.patientsProcessed}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Timeline */}
+          <div className="card">
+            <h2 className="mb-4 text-lg font-bold text-slate-900">
+              Full Timeline
+            </h2>
+            {report.timeline.length === 0 ? (
+              <div className="py-8 text-center text-sm text-slate-500">
+                No appointments for this day.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                      <th className="pb-3 font-medium">Station</th>
-                      <th className="pb-3 text-right font-medium">
-                        Patients processed
-                      </th>
+                      <th className="pb-3 font-medium">Time</th>
+                      <th className="pb-3 font-medium">Patient</th>
+                      <th className="pb-3 font-medium">Status</th>
+                      <th className="pb-3 font-medium">Checked In</th>
+                      <th className="pb-3 font-medium">Consult</th>
+                      <th className="pb-3 font-medium">Done</th>
+                      <th className="pb-3 font-medium">Total</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {report.stationActivity.map((station) => (
+                    {report.timeline.map((t) => (
                       <tr
-                        key={station.station}
+                        key={t.appointmentId}
                         className="border-b border-slate-100 last:border-0"
                       >
-                        <td className="py-3 font-medium text-slate-700">
-                          {station.station}
+                        <td className="py-3 font-medium text-slate-900">
+                          {t.scheduledTime}
                         </td>
-                        <td className="py-3 text-right font-semibold text-slate-900">
-                          {station.patientsProcessed}
+                        <td className="py-3 text-slate-700">{t.patientName}</td>
+                        <td className="py-3 text-slate-600">{t.status}</td>
+                        <td className="py-3 text-slate-500">
+                          {formatTime(t.checkedInAt)}
+                        </td>
+                        <td className="py-3 text-slate-500">
+                          {formatTime(t.consultationStartedAt)}
+                        </td>
+                        <td className="py-3 text-slate-500">
+                          {formatTime(t.completedAt)}
+                        </td>
+                        <td className="py-3 text-slate-600">
+                          {t.totalMinutes ? `${t.totalMinutes} min` : "—"}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </section>
+            )}
           </div>
-
-          <section className="card mt-8">
-            <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  Appointment Timeline
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Every appointment recorded for {report.date}
-                </p>
-              </div>
-              <span className="text-sm text-slate-500">
-                {report.timeline.length} appointments
-              </span>
-            </div>
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[800px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                    <th className="pb-3 font-medium">Scheduled</th>
-                    <th className="pb-3 font-medium">Patient</th>
-                    <th className="pb-3 font-medium">Checked in</th>
-                    <th className="pb-3 font-medium">Consult started</th>
-                    <th className="pb-3 font-medium">Completed</th>
-                    <th className="pb-3 font-medium">Status</th>
-                    <th className="pb-3 text-right font-medium">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.timeline.map((entry) => (
-                    <tr
-                      key={entry.appointmentId}
-                      className="border-b border-slate-100 last:border-0"
-                    >
-                      <td className="py-3 font-medium text-slate-900">
-                        {entry.scheduledTime}
-                      </td>
-                      <td className="py-3">
-                        <div className="font-medium text-slate-900">
-                          {entry.patientName}
-                        </div>
-                        {entry.phone && (
-                          <div className="text-xs text-slate-500">
-                            {entry.phone}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 text-slate-600">
-                        {formatTimestamp(entry.checkedInAt)}
-                      </td>
-                      <td className="py-3 text-slate-600">
-                        {formatTimestamp(entry.consultationStartedAt)}
-                      </td>
-                      <td className="py-3 text-slate-600">
-                        {formatTimestamp(entry.completedAt)}
-                      </td>
-                      <td className="py-3">
-                        <StatusBadge status={entry.status} />
-                      </td>
-                      <td className="py-3 text-right text-slate-600">
-                        {entry.totalMinutes === null
-                          ? "-"
-                          : `${entry.totalMinutes} min`}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </>
-      ) : null}
+        </div>
+      )}
     </div>
   );
 }
 
-function Metric({
+function StatCard({
   label,
   value,
-  tone = "slate",
+  color = "slate",
 }: {
   label: string;
   value: number | string;
-  tone?: "slate" | "green" | "red" | "amber";
+  color?: "slate" | "green" | "amber" | "red" | "blue";
 }) {
   const colors = {
-    slate: "bg-slate-100 text-slate-700",
-    green: "bg-green-100 text-green-700",
-    red: "bg-red-100 text-red-700",
-    amber: "bg-amber-100 text-amber-700",
+    slate: "text-slate-700",
+    green: "text-green-600",
+    amber: "text-amber-600",
+    red: "text-red-600",
+    blue: "text-blue-600",
   };
   return (
     <div className="card !p-4">
       <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
         {label}
       </div>
-      <div
-        className={`mt-2 inline-flex rounded-lg px-3 py-1 text-2xl font-bold ${colors[tone]}`}
-      >
-        {value}
-      </div>
+      <div className={`mt-2 text-2xl font-bold ${colors[color]}`}>{value}</div>
     </div>
   );
 }
 
-function WaitMetric({ label, value }: { label: string; value: number }) {
+function MetricRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-slate-50 p-4">
-      <div className="text-xs font-medium text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-bold text-slate-900">
-        {value} <span className="text-sm font-medium text-slate-500">min</span>
+    <div>
+      <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
       </div>
+      <div className="mt-1 text-xl font-bold text-slate-900">{value}</div>
     </div>
   );
+}
+
+function formatTime(iso: string | null | undefined) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("en-ZA", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

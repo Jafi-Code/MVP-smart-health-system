@@ -27,9 +27,13 @@ export const auth = {
 };
 
 // ─────────────────────────────────────────────
-// FETCH WRAPPER
+// FETCH WRAPPER (with auto-refresh on 401)
 // ─────────────────────────────────────────────
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  isRetry = false,
+): Promise<T> {
   const token = auth.getAccessToken();
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -42,6 +46,37 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   const json = await res.json();
+
+  // Auto-refresh on 401
+  if (res.status === 401 && !isRetry) {
+    const refreshToken = auth.getRefreshToken();
+    if (refreshToken) {
+      try {
+        const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+
+        if (refreshRes.ok) {
+          const refreshJson = await refreshRes.json();
+          const newAccessToken = refreshJson.data.accessToken;
+          const currentUser = auth.getUser();
+          auth.save({
+            accessToken: newAccessToken,
+            refreshToken,
+            user: currentUser,
+          });
+          return request<T>(path, options, true);
+        }
+      } catch {
+        // fall through
+      }
+    }
+    auth.clear();
+    window.location.href = "/login";
+    throw new ApiError("Session expired", "UNAUTHORIZED", 401);
+  }
 
   if (!res.ok) {
     const message = json?.error?.message || "Request failed";
@@ -71,10 +106,7 @@ export const api = {
   login: (identifier: string, password: string) =>
     request<{ user: any; accessToken: string; refreshToken: string }>(
       "/auth/login",
-      {
-        method: "POST",
-        body: JSON.stringify({ identifier, password }),
-      },
+      { method: "POST", body: JSON.stringify({ identifier, password }) },
     ),
 
   me: () => request<{ user: any }>("/auth/me"),
@@ -89,48 +121,46 @@ export const api = {
       body: JSON.stringify({ status }),
     }),
 
-  getDailyReport: (date?: string) =>
-    request<DailyReport>(
-      `/clinic/reports/daily${date ? `?date=${encodeURIComponent(date)}` : ""}`,
-    ),
-
-  downloadDailyReportCSV: async (date?: string) => {
-    const token = auth.getAccessToken();
-    const query = date ? `?date=${encodeURIComponent(date)}` : "";
-    const response = await fetch(
-      `${API_BASE}/clinic/reports/daily/export${query}`,
-      {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      },
-    );
-
-    if (!response.ok) {
-      let message = "Failed to download report";
-      try {
-        const json = await response.json();
-        message = json?.error?.message || message;
-      } catch {
-        // Keep the generic message when the server does not return JSON.
-      }
-      throw new ApiError(message, "REPORT_DOWNLOAD_FAILED", response.status);
-    }
-
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `shs-report-${date || new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  },
-
   // Public
   getClinicQueue: (clinicId: string) =>
     request<{ date: string; stats: QueueStats; appointments: Appointment[] }>(
       `/appointments/queue/${clinicId}`,
     ),
+
+  // ─────────────────────────────────────────────
+  // REPORTS (MANAGER ONLY)
+  // ─────────────────────────────────────────────
+  getDailyReport: (date?: string) =>
+    request<DailyReport>(`/clinic/reports/daily${date ? `?date=${date}` : ""}`),
+
+  downloadDailyReportCSV: async (date?: string) => {
+    const token = auth.getAccessToken();
+    const url = `${API_BASE}/clinic/reports/daily/export${
+      date ? `?date=${date}` : ""
+    }`;
+
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    if (!res.ok) {
+      throw new ApiError(
+        "Failed to download report",
+        "DOWNLOAD_FAILED",
+        res.status,
+      );
+    }
+
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = `shs-report-${date || "today"}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  },
 };
 
 // ─────────────────────────────────────────────
@@ -163,12 +193,7 @@ export interface Appointment {
     name: string;
   };
 }
-export type Station =
-  | "NONE"
-  | "RECEPTION"
-  | "TRIAGE"
-  | "CONSULTATION"
-  | "PHARMACY";
+
 export interface QueueStats {
   total: number;
   scheduled: number;
@@ -177,37 +202,47 @@ export interface QueueStats {
   done: number;
 }
 
+// ─────────────────────────────────────────────
+// REPORT TYPES
+// ─────────────────────────────────────────────
+export interface DailyReportSummary {
+  totalAppointments: number;
+  completed: number;
+  noShows: number;
+  cancelled: number;
+  stillWaiting: number;
+  noShowRate: number;
+  completionRate: number;
+}
+
+export interface DailyReportWaitTimes {
+  averageTotalMinutes: number;
+  averageTriageToConsultMinutes: number;
+  averageConsultToDoneMinutes: number;
+}
+
+export interface DailyReportStation {
+  station: string;
+  patientsProcessed: number;
+}
+
+export interface DailyReportTimelineItem {
+  appointmentId: string;
+  patientName: string;
+  scheduledTime: string;
+  status: string;
+  checkedInAt: string | null;
+  consultationStartedAt: string | null;
+  completedAt: string | null;
+  totalMinutes: number | null;
+}
+
 export interface DailyReport {
   date: string;
   clinicId: string;
   clinicName: string;
-  summary: {
-    totalAppointments: number;
-    completed: number;
-    noShows: number;
-    cancelled: number;
-    stillWaiting: number;
-    noShowRate: number;
-    completionRate: number;
-  };
-  waitTimes: {
-    averageTotalMinutes: number;
-    averageTriageToConsultMinutes: number;
-    averageConsultToDoneMinutes: number;
-  };
-  stationActivity: Array<{
-    station: string;
-    patientsProcessed: number;
-  }>;
-  timeline: Array<{
-    appointmentId: string;
-    patientName: string;
-    phone?: string | null;
-    scheduledTime: string;
-    status: AppointmentStatus;
-    checkedInAt: string | null;
-    consultationStartedAt: string | null;
-    completedAt: string | null;
-    totalMinutes: number | null;
-  }>;
+  summary: DailyReportSummary;
+  waitTimes: DailyReportWaitTimes;
+  stationActivity: DailyReportStation[];
+  timeline: DailyReportTimelineItem[];
 }
