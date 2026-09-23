@@ -1,10 +1,7 @@
 /// <reference types="vite/client" />
-/// <reference types="vite-plugin-pwa/client" />
 
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
-  readonly VITE_PATIENT_APP_URL?: string;
-  readonly VITE_CLINIC_APP_URL?: string;
 }
 
 interface ImportMeta {
