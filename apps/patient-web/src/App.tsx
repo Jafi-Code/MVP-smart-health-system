@@ -6,6 +6,7 @@ import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Book from "./pages/Book";
 import QueueView from "./pages/QueueView";
+import OfflineIndicator from "./components/OfflineIndicator";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
+        <OfflineIndicator />
       </BrowserRouter>
     </AuthProvider>
   );
