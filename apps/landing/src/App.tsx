@@ -1,3 +1,8 @@
+const PATIENT_APP_URL =
+  import.meta.env.VITE_PATIENT_APP_URL || "http://localhost:5175";
+const CLINIC_APP_URL =
+  import.meta.env.VITE_CLINIC_APP_URL || "http://localhost:5174";
+
 export default function App() {
   return (
     <div className="min-h-screen">
@@ -6,6 +11,7 @@ export default function App() {
       <Problem />
       <FailedAttempts />
       <Solution />
+      <DemoLinks />
       <Waitlist />
       <Footer />
     </div>
@@ -22,7 +28,7 @@ function Nav() {
           <img
             src="/logo.jpg"
             alt="Smart Health System logo"
-            className="h-12 w-12 rounded-lg object-contain"
+            className="h-9 w-9 rounded-full object-contain"
           />
           <span className="text-lg font-bold text-slate-900">
             Smart Health System
@@ -42,14 +48,17 @@ function Nav() {
             Solution
           </a>
           <a
-            href="#waitlist"
+            href="#demo"
             className="text-sm font-medium text-slate-600 hover:text-primary"
           >
-            Waitlist
+            Demo
           </a>
         </div>
-        <a href="#waitlist" className="btn-primary !px-4 !py-2 !text-sm">
-          Join Waitlist
+        <a
+          href={`${PATIENT_APP_URL}/register`}
+          className="btn-primary !px-4 !py-2 !text-sm"
+        >
+          Get Started
         </a>
       </div>
     </nav>
@@ -75,11 +84,17 @@ function Hero() {
             journey that patients endure every day.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <a href="#waitlist" className="btn-primary w-full sm:w-auto">
-              Join the Waitlist
+            <a
+              href={`${PATIENT_APP_URL}/register`}
+              className="btn-primary w-full sm:w-auto"
+            >
+              Get Started — It's Free
             </a>
-            <a href="#solution" className="btn-secondary w-full sm:w-auto">
-              See How It Works
+            <a
+              href={`${PATIENT_APP_URL}/login`}
+              className="btn-secondary w-full sm:w-auto"
+            >
+              Sign In
             </a>
           </div>
           <p className="mt-6 text-sm text-slate-500">
@@ -269,48 +284,145 @@ function Solution() {
   );
 }
 
-/* ---------- Waitlist ---------- */
+/* ---------- Demo Links ---------- */
+
+function DemoLinks() {
+  return (
+    <section id="demo" className="bg-surface py-20 sm:py-24">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="section-heading">Try it live</h2>
+          <p className="section-subheading">
+            SHS is not a concept. It's a working system. Open any app below.
+          </p>
+        </div>
+
+        <div className="mt-16 grid gap-6 sm:grid-cols-2">
+          <a
+            href={`${PATIENT_APP_URL}/register`}
+            className="group rounded-2xl border-2 border-slate-200 bg-white p-8 transition hover:border-primary hover:shadow-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-2xl">
+              📱
+            </div>
+            <h3 className="mt-4 text-lg font-bold text-slate-900">
+              Patient App
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Book an appointment, track your queue position, and see your
+              upcoming visits.
+            </p>
+            <div className="mt-4 text-sm font-semibold text-primary group-hover:underline">
+              Open patient app →
+            </div>
+          </a>
+
+          <a
+            href={`${CLINIC_APP_URL}/login`}
+            className="group rounded-2xl border-2 border-slate-200 bg-white p-8 transition hover:border-primary hover:shadow-md"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/10 text-2xl">
+              🏥
+            </div>
+            <h3 className="mt-4 text-lg font-bold text-slate-900">
+              Clinic Dashboard
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Manage today's appointments, update queue status, and view daily
+              reports. For clinic staff.
+            </p>
+            <div className="mt-4 text-sm font-semibold text-secondary group-hover:underline">
+              Open clinic dashboard →
+            </div>
+          </a>
+        </div>
+
+        {/* Demo credentials box */}
+        <div className="mt-10 mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6">
+          <h4 className="text-sm font-bold text-slate-900">Demo credentials</h4>
+          <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+            <div className="rounded-lg bg-slate-50 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Patient
+              </div>
+              <div className="mt-1 font-mono text-xs text-slate-700">
+                0821234567
+              </div>
+              <div className="font-mono text-xs text-slate-700">
+                PatientPass123!
+              </div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Receptionist
+              </div>
+              <div className="mt-1 font-mono text-xs text-slate-700">
+                reception@vut-clinic.test
+              </div>
+              <div className="font-mono text-xs text-slate-700">
+                StaffPass123!
+              </div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Nurse
+              </div>
+              <div className="mt-1 font-mono text-xs text-slate-700">
+                nurse@vut-clinic.test
+              </div>
+              <div className="font-mono text-xs text-slate-700">
+                StaffPass123!
+              </div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Manager
+              </div>
+              <div className="mt-1 font-mono text-xs text-slate-700">
+                manager@vut-clinic.test
+              </div>
+              <div className="font-mono text-xs text-slate-700">
+                StaffPass123!
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- Waitlist / CTA ---------- */
 
 function Waitlist() {
   return (
     <section id="waitlist" className="bg-primary py-20 sm:py-24">
       <div className="mx-auto max-w-3xl px-6 text-center text-white">
         <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Join the waitlist
+          Ready to skip the queue?
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-lg text-blue-100">
-          Be the first to know when Smart Health System launches at your
-          university or clinic. We'll email you.
+          Create your free account in under 60 seconds. Book your first
+          appointment in less than two minutes.
         </p>
 
-        <form
-          className="mx-auto mt-10 flex max-w-md flex-col gap-3 sm:flex-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            alert(
-              "Thank you! Your email has been recorded. (Demo only — backend coming next.)",
-            );
-          }}
-        >
-          <input
-            type="email"
-            required
-            placeholder="you@example.com"
-            className="w-full rounded-lg border-0 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-300"
-          />
-          <button
-            type="submit"
-            className="rounded-lg bg-teal-500 px-6 py-3 font-semibold text-white transition hover:bg-teal-400"
+        <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <a
+            href={`${PATIENT_APP_URL}/register`}
+            className="rounded-lg bg-teal-500 px-8 py-3 text-base font-semibold text-white transition hover:bg-teal-400"
           >
-            Sign Up
-          </button>
-        </form>
-
-        <p className="mt-4 text-sm text-blue-200">
-          Already have an account?{" "}
-          <a href="/app" className="underline">
-            Sign in
+            Create Free Account
           </a>
+          <a
+            href={`${PATIENT_APP_URL}/login`}
+            className="rounded-lg border-2 border-white/30 px-8 py-3 text-base font-semibold text-white transition hover:bg-white/10"
+          >
+            Sign In
+          </a>
+        </div>
+
+        <p className="mt-6 text-sm text-blue-200">
+          No credit card. No fees. Public clinic patients always free.
         </p>
       </div>
     </section>
@@ -324,18 +436,19 @@ function Footer() {
     <footer className="border-t border-slate-200 bg-white py-12">
       <div className="mx-auto max-w-7xl px-6">
         <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-          <div className="text-center sm:text-left">
-            <div className="text-sm font-semibold text-slate-900">
-              Smart Health System
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.jpg"
+              alt="Smart Health System"
+              className="h-8 w-8 rounded-full object-contain"
+            />
+            <div>
+              <div className="text-sm font-semibold text-slate-900">
+                Smart Health System
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex items-center justify-center gap-3 sm:justify-start">
-          <img
-            src="/logo.jpg"
-            alt="Smart Health System logo"
-            className="h-12 w-12 object-contain"
-          />
+          <div className="text-center sm:text-right"></div>
         </div>
         <div className="mt-8 border-t border-slate-200 pt-6 text-center text-xs text-slate-400">
           © 2026 Smart Health System. Offline-first patient flow management for

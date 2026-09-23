@@ -36,7 +36,7 @@ export default function Login() {
           <img
             src="/logo.jpg"
             alt="Smart Health System"
-            className="h-14 w-14 object-contain"
+            className="h-14 w-14 rounded-full object-contain"
           />
           <h1 className="mt-6 text-3xl font-bold leading-tight">
             Welcome back

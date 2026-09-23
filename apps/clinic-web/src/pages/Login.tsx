@@ -38,7 +38,7 @@ export default function Login() {
           <img
             src="/logo.jpg"
             alt="Smart Health System"
-            className="mx-auto h-14 w-14 object-contain"
+            className="h-14 w-14 rounded-full object-contain"
           />
           <h1 className="mt-4 text-2xl font-bold text-slate-900">
             SHS Clinic Dashboard
