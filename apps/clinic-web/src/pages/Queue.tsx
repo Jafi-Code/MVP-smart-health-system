@@ -6,6 +6,7 @@ import {
   ApiError,
 } from "../lib/api";
 import { StatusBadge } from "./Dashboard";
+import { queueStatusUpdate, flushQueue } from "../lib/offlineQueue";
 
 export default function Queue() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -16,11 +17,28 @@ export default function Queue() {
   const loadData = async () => {
     setError("");
     try {
-      const data = await api.getTodayAppointments();
+      const data = await api.getAppointmentsByDate("today");
       setAppointments(data.appointments);
+      // Cache for offline display
+      localStorage.setItem(
+        "shs_last_appointments",
+        JSON.stringify(data.appointments),
+      );
     } catch (err) {
-      if (err instanceof ApiError) setError(err.message);
-      else setError("Failed to load queue");
+      // API unreachable — try cached data
+      const cached = localStorage.getItem("shs_last_appointments");
+      if (cached) {
+        try {
+          setAppointments(JSON.parse(cached));
+          setError("⚡ Offline — showing last known appointments");
+        } catch {
+          setError("Failed to load appointments");
+        }
+      } else if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Failed to load appointments");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -37,6 +55,17 @@ export default function Queue() {
     setUpdating(appointmentId);
     setError("");
 
+    // Optimistic update — UI changes immediately
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === appointmentId ? { ...a, status } : a)),
+    );
+
+    if (!navigator.onLine) {
+      await queueStatusUpdate(appointmentId, status);
+      setUpdating(null);
+      return;
+    }
+
     try {
       const result = await api.updateStatus(appointmentId, status);
       setAppointments((prev) =>
@@ -49,6 +78,21 @@ export default function Queue() {
       setUpdating(null);
     }
   };
+
+  // Auto-flush queue when back online
+  useEffect(() => {
+    const flush = async () => {
+      await flushQueue(async (id, status) => {
+        await api.updateStatus(id, status as AppointmentStatus);
+      });
+      loadData();
+    };
+
+    window.addEventListener("online", flush);
+    if (navigator.onLine) flush();
+
+    return () => window.removeEventListener("online", flush);
+  }, []);
 
   const sorted = [...appointments].sort((a, b) => {
     const order: Record<string, number> = {

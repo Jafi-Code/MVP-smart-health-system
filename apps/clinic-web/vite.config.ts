@@ -39,7 +39,7 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/],
       },
       devOptions: {
-        enabled: true,
+        enabled: false,
       },
     }),
   ],
