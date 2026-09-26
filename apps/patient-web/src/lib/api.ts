@@ -27,9 +27,13 @@ export const auth = {
 };
 
 // ─────────────────────────────────────────────
-// FETCH WRAPPER
+// FETCH WRAPPER (with auto-refresh + offline persistence)
 // ─────────────────────────────────────────────
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  isRetry = false,
+): Promise<T> {
   const token = auth.getAccessToken();
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -42,6 +46,46 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   const json = await res.json();
+
+  // ─── Auto-refresh on 401 ──────────────────────
+  if (res.status === 401 && !isRetry) {
+    const refreshToken = auth.getRefreshToken();
+
+    if (refreshToken) {
+      try {
+        const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+
+        if (refreshRes.ok) {
+          const refreshJson = await refreshRes.json();
+          const newAccessToken = refreshJson.data.accessToken;
+          const currentUser = auth.getUser();
+
+          auth.save({
+            accessToken: newAccessToken,
+            refreshToken,
+            user: currentUser,
+          });
+
+          // Retry the original request once
+          return request<T>(path, options, true);
+        }
+      } catch {
+        // Refresh failed — fall through to logout
+      }
+    }
+
+    // Only force logout if we're actually online
+    // (if offline, keep the session so user stays logged in)
+    if (navigator.onLine) {
+      auth.clear();
+      window.location.href = "/login";
+    }
+    throw new ApiError("Session expired", "UNAUTHORIZED", 401);
+  }
 
   if (!res.ok) {
     const message = json?.error?.message || "Request failed";
@@ -109,6 +153,17 @@ export const api = {
     request<{ date: string; stats: QueueStats; appointments: QueueItem[] }>(
       `/appointments/queue/${clinicId}${date ? `?date=${date}` : ""}`,
     ),
+
+  // Slot availability
+  getSlotAvailability: (clinicId: string, date: string) =>
+    request<{
+      date: string;
+      capacity: number;
+      slots: Record<
+        string,
+        { booked: number; capacity: number; full: boolean }
+      >;
+    }>(`/appointments/slots/${clinicId}?date=${date}`),
 };
 
 // ─────────────────────────────────────────────
@@ -117,7 +172,9 @@ export const api = {
 export type AppointmentStatus =
   | "SCHEDULED"
   | "CHECKED_IN"
+  | "IN_VITALS"
   | "IN_CONSULTATION"
+  | "AWAITING_MEDICATION"
   | "DONE"
   | "CANCELLED"
   | "NO_SHOW";
