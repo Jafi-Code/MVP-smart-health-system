@@ -6,7 +6,6 @@ import dotenv from "dotenv";
 
 import { prisma } from "./lib/prisma.js";
 import authRoutes from "./routes/auth.routes.js";
-
 import {
   appointmentRoutes,
   clinicRoutes,
@@ -35,7 +34,7 @@ const app = Fastify({
 });
 
 // ─────────────────────────────────────────────
-// AUTH DECORATOR (used by protected routes)
+// AUTH DECORATOR
 // ─────────────────────────────────────────────
 app.decorate("authenticate", async function (request: any, reply: any) {
   try {
@@ -49,24 +48,42 @@ app.decorate("authenticate", async function (request: any, reply: any) {
 });
 
 // ─────────────────────────────────────────────
-// PLUGINS
+// GLOBAL ERROR HANDLER
 // ─────────────────────────────────────────────
-async function registerPlugins() {
-  await app.register(helmet, { contentSecurityPolicy: false });
+app.setErrorHandler((error: any, _request, reply) => {
+  app.log.error(error);
 
-  await app.register(cors, {
-    origin: process.env.CORS_ORIGIN?.split(",") || true,
-    credentials: true,
-  });
+  // Prisma connection pool errors → 503 quickly
+  if (
+    error?.name === "PrismaClientKnownRequestError" &&
+    error?.code === "P2024"
+  ) {
+    return reply.status(503).send({
+      success: false,
+      error: {
+        code: "SERVICE_UNAVAILABLE",
+        message: "Database temporarily unavailable. Please try again.",
+      },
+    });
+  }
 
-  await app.register(jwt, {
-    secret: process.env.JWT_SECRET || "fallback-dev-secret-change-me",
-    sign: { expiresIn: process.env.JWT_ACCESS_EXPIRY || "15m" },
-  });
-}
+  // Generic 500
+  if (error?.statusCode === undefined || error.statusCode >= 500) {
+    return reply.status(500).send({
+      success: false,
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "Something went wrong. Please try again.",
+      },
+    });
+  }
+
+  // 4xx errors pass through
+  return reply.send(error);
+});
 
 // ─────────────────────────────────────────────
-// ROUTES
+// HEALTH ROUTES (public, no DB needed)
 // ─────────────────────────────────────────────
 app.get("/health", async () => ({
   status: "ok",
@@ -96,7 +113,7 @@ app.get("/health/db", async (_request, reply) => {
     };
   } catch (error) {
     app.log.error(error);
-    return reply.status(500).send({
+    return reply.status(503).send({
       status: "error",
       database: "disconnected",
       message: error instanceof Error ? error.message : "Unknown error",
@@ -130,19 +147,32 @@ app.get("/", async () => ({
   },
 }));
 
-// Register auth routes under /api/v1/auth
-await app.register(authRoutes, { prefix: "/api/v1/auth" });
-await app.register(appointmentRoutes, { prefix: "/api/v1" });
-await app.register(clinicRoutes, { prefix: "/api/v1/clinic" });
-
 // ─────────────────────────────────────────────
-// START
+// PLUGINS + ROUTES + LISTEN
 // ─────────────────────────────────────────────
 async function start() {
   try {
-    await registerPlugins();
+    // 1. Plugins
+    await app.register(helmet, { contentSecurityPolicy: false });
+
+    await app.register(cors, {
+      origin: process.env.CORS_ORIGIN?.split(",") ?? true,
+      credentials: true,
+    });
+
+    await app.register(jwt, {
+      secret: process.env.JWT_SECRET || "fallback-dev-secret-change-me",
+      sign: { expiresIn: process.env.JWT_ACCESS_EXPIRY || "15m" },
+    });
+
+    // 2. Routes
+    await app.register(authRoutes, { prefix: "/api/v1/auth" });
+    await app.register(appointmentRoutes, { prefix: "/api/v1" });
+    await app.register(clinicRoutes, { prefix: "/api/v1/clinic" });
+
+    // 3. Listen
     await app.listen({ port: PORT, host: HOST });
-    app.log.info(`🚀 SHS API running at http://localhost:${PORT}`);
+    app.log.info(`SHS API running at http://localhost:${PORT}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
