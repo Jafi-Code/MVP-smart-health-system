@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { api, type Clinic, ApiError } from "../lib/api";
+import { queueBooking, flushBookings } from "../lib/offlineQueue";
 
 // Time slots available at VUT-style clinic
 const TIME_SLOTS = [
@@ -47,9 +48,22 @@ export default function Book() {
       try {
         const data = await api.listClinics();
         setClinics(data.clinics);
+        localStorage.setItem("shs_clinics", JSON.stringify(data.clinics));
         if (data.clinics.length > 0) setClinicId(data.clinics[0].id);
       } catch (err) {
-        if (err instanceof ApiError) setError(err.message);
+        // Fall back to cached clinic list
+        const cached = localStorage.getItem("shs_clinics");
+        if (cached) {
+          try {
+            const clinics = JSON.parse(cached);
+            setClinics(clinics);
+            if (clinics.length > 0) setClinicId(clinics[0].id);
+          } catch {
+            if (err instanceof ApiError) setError(err.message);
+          }
+        } else if (err instanceof ApiError) {
+          setError(err.message);
+        }
       } finally {
         setIsLoadingClinics(false);
       }
@@ -66,6 +80,29 @@ export default function Book() {
     }
 
     setIsSubmitting(true);
+
+    // Offline — queue the booking
+    if (!navigator.onLine) {
+      try {
+        await queueBooking({
+          clinicId,
+          date,
+          time,
+          reason: reason || undefined,
+        });
+        alert(
+          "✓ Booking saved. It will be confirmed automatically when you reconnect.",
+        );
+        navigate("/home");
+      } catch {
+        setError("Failed to save booking offline");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // Online — book immediately
     try {
       await api.bookAppointment({
         clinicId,
@@ -81,6 +118,20 @@ export default function Book() {
       setIsSubmitting(false);
     }
   };
+
+  // Auto-flush queued bookings when back online
+  useEffect(() => {
+    const flush = async () => {
+      await flushBookings(async (data) => {
+        await api.bookAppointment(data);
+      });
+    };
+
+    window.addEventListener("online", flush);
+    if (navigator.onLine) flush();
+
+    return () => window.removeEventListener("online", flush);
+  }, []);
 
   const today = new Date().toISOString().split("T")[0];
 

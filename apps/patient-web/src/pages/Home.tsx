@@ -16,15 +16,36 @@ export default function Home() {
     try {
       const data = await api.getMyAppointments();
       setAppointments(data.appointments);
+      // Cache for offline viewing
+      localStorage.setItem(
+        "shs_patient_appointments",
+        JSON.stringify(data.appointments),
+      );
     } catch (err) {
-      if (err instanceof ApiError) {
+      // API failed — try cached data
+      const cached = localStorage.getItem("shs_patient_appointments");
+      if (cached) {
+        try {
+          setAppointments(JSON.parse(cached));
+          setError("⚡ Offline — showing your last known appointments");
+        } catch {
+          if (err instanceof ApiError && err.status === 401) {
+            logout();
+            navigate("/login");
+            return;
+          }
+          setError("Failed to load appointments");
+        }
+      } else if (err instanceof ApiError) {
         if (err.status === 401) {
           logout();
           navigate("/login");
           return;
         }
         setError(err.message);
-      } else setError("Failed to load appointments");
+      } else {
+        setError("Failed to load appointments");
+      }
     } finally {
       setIsLoading(false);
     }
