@@ -115,6 +115,11 @@ export const api = {
   getTodayAppointments: () =>
     request<{ appointments: Appointment[] }>("/clinic/appointments"),
 
+  getAppointmentsByDate: (date?: string) =>
+    request<{ appointments: Appointment[] }>(
+      `/clinic/appointments${date ? `?date=${date}` : ""}`,
+    ),
+
   updateStatus: (id: string, status: AppointmentStatus) =>
     request<{ appointment: Appointment }>(`/clinic/appointments/${id}/status`, {
       method: "PATCH",
